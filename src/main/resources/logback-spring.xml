@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="60 seconds" debug="false">
+	<contextName>logback</contextName>
+	<!-- logging.path，设置目录，会在该目录下创建spring.log文件 -->
+	<property name="log.path" value="D:\\spBootDemmologs"></property>
+
+	<!-- 输出到控制台  -->
+	<appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS} %contextName {%thread} %-5level %logger{36} -%msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<!-- 输出到文件  -->
+	<!-- 注意此处文件名和文件路径的配置，和原博客不一样 -->
+	<appender name="file" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<!-- 日志切分方式，按天 -->
+			<fileNamePattern>${log.path}/logback.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<!-- 最大保留的日志天数 -->
+			<maxHistory>30</maxHistory>
+			<!-- 日志文件上限大小，超过则删除 --> 
+			<totalSizeCap>1GB</totalSizeCap>
+		</rollingPolicy>
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS} %contextName [%thread] %-5level %logger{36} - %msg%n</pattern>
+		</encoder>
+	</appender>
+	
+	<!-- 指定最基础的日志输出级别,默认是debug -->
+	<root level="debug">
+		<appender-ref ref="console"/>
+		<appender-ref ref="file"/>
+	</root>
+	
+	<logger name="org.jzz.spbootDemo.controller.HelloWorldController2" level="info" additivity="false">
+		<appender-ref ref="file"/>
+	</logger>
+	
+</configuration>
