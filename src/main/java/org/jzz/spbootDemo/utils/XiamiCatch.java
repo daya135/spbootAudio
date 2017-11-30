@@ -18,19 +18,25 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.http.HttpEntity;  
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;  
-import org.apache.http.client.ClientProtocolException;  
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;  
-import org.apache.http.client.methods.CloseableHttpResponse;  
-import org.apache.http.client.methods.HttpPost;  
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.impl.client.CloseableHttpClient;  
 import org.apache.http.impl.client.HttpClients;  
 import org.apache.http.message.BasicNameValuePair;  
 import org.apache.http.util.EntityUtils;
-
+import org.jzz.spbootDemo.Service.SongService;
 import org.jzz.spbootDemo.model.Song;
 import org.jzz.spbootDemo.model.XiamiConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.stereotype.Component;  
@@ -40,6 +46,7 @@ public class XiamiCatch {
 	
 //	@Autowired
 //	private XiamiConfig xiamiConfig;
+	private static Logger logger = LoggerFactory.getLogger(XiamiCatch.class);
 	
 	private static String userName;
 	private static String passWord;
@@ -96,7 +103,10 @@ public class XiamiCatch {
 		}
 	}
 	
-	public static List<Song> postForm() {
+	/** 
+	 * @description 根据虾米收藏列表，抓取歌曲名称、艺术家、上架信息和歌曲虾米链接
+	 * */
+	public static List<Song> CatchSongInfo() {
 		
 		CloseableHttpClient httpClient = HttpClients.createDefault();
 		//此处不是登陆页面的地址, 而是表单提交的地址!
@@ -147,7 +157,6 @@ public class XiamiCatch {
 			if (songNum % numPerPage != 0)
 				pageNum = pageNum +1;
 			for (int i = 1; i <= pageNum; i++) {
-			//for (int i = 2; i <= 2; i++) {
 				String listUrl = "http://www.xiami.com/space/lib-song/u/" + uid + "/page/" + i;
 				httpPost = new HttpPost(listUrl);
 				httpPost.setEntity(uefEntity); 
@@ -156,11 +165,11 @@ public class XiamiCatch {
 				System.out.println(response.getStatusLine());
 				entity = response.getEntity();
 				String htmlContent = EntityUtils.toString(entity);
-				/* 保存网页文件  */
+				/* 保存网页到文件再解析  */
 				//saveFile(htmlContent);
-				/* 解析网页文件  */
 				//ProcessHtml.findSongByTmpFile(fileName, songList);
 				
+				/* 直接从字符串解析  */
 				ProcessHtml.findSongByHtmlStr(htmlContent, songList);
 			}
 		} catch (ClientProtocolException e) {  
@@ -177,6 +186,48 @@ public class XiamiCatch {
             }  
         }  
 		return songList;
+	}
+	
+	/**
+	 *  根据虾米链接，抓取song的专辑信息。
+	 *  未完成，执行一段时间后会因为不知名原因卡住。。
+	 */
+	public static void CatchSongAlbumInfo(List<Song> songs) {
+		CloseableHttpClient httpClient = HttpClients.createDefault();
+		HttpGet httpGet;
+		for (int i = 0; i < songs.size();  i ++) {
+			Song song = songs.get(i);
+			if (song.getDownsite() != null && song.getDownsite().length() > 0) {
+				if (!song.getDownsite().contains("http://www.xiami.com/")) {
+					logger.info(String.format("歌曲地址不正确！：title=[%s],artist=[%s],sit=[%s]", 
+							song.getTitle(), song.getArtist(), song.getDownsite()));
+					continue;
+				}
+				httpGet = new HttpGet(song.getDownsite());
+				httpGet.setConfig(RequestConfig.custom().setRedirectsEnabled(false).build()); //禁止自动重定向，虾米的某些歌曲页面会重定向，比如http://www.xiami.com/song/xLB4rda4246
+				try {
+					HttpResponse response = httpClient.execute(httpGet);
+					if (response.getStatusLine().toString().equals("HTTP/1.1 200 OK")) {
+						String htmlContent = EntityUtils.toString(response.getEntity());
+						String album = ProcessHtml.findAlbumByHtmlStr(htmlContent);
+						logger.info(String.format("提取歌曲专辑信息：[%d][%s][%s][%s][%s]", 
+								i, song.getTitle(), song.getArtist(),album, song.getDownsite()));
+						song.setAlbum(album);
+						Thread.sleep(100);
+					} else {
+						logger.info("获取歌曲详细信息页面出错!歌曲信息：[%d][%s][%s][%s]", i, song.getTitle(), song.getArtist(), song.getDownsite());
+					}
+//					Thread.sleep(50);
+				} catch (Exception e) {
+					logger.debug(e.getMessage());
+				} 
+			}
+		}
+        try {  
+            httpClient.close();
+        } catch (IOException e) {  
+            e.printStackTrace();  
+        }  
 	}
 
 }

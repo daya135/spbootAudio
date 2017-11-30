@@ -24,6 +24,10 @@ public class ProcessHtml {
 	
 	private List<Song> songList = new ArrayList<Song>();
 	
+	private static Pattern tabStartPatt = Pattern.compile("[\\s]*<tr data-needpay=\"\\d\" data-playstatus=\"\\d\"");
+	private static Pattern tabEndPatt = Pattern.compile("[\\s]*</table>");
+	private static Pattern hrefPatt = Pattern.compile("(href=\")\\S*\"");
+	
 	private static  String replaceKey(String str){
 		/*
 		 * 全角空格是E38080, 无法trim掉
@@ -34,16 +38,16 @@ public class ProcessHtml {
 		return str;
 	}
 	
-	public void printList() {
+	public static void printList(List<Song> songList) {
 		int n = 0;
 		int pageCount = 1;
 		for (Song song : songList) {
-			if (n%25 == 0) {
+			if (n % 25 == 0) {
 				System.out.println("-------" + pageCount + "-------");
 				pageCount ++;
 				n = 0;
 			}
-			System.out.println("[" + song.getTitle() +"]" + "[" + song.getArtist() +"]" 
+			System.out.println("[" + song.getTitle() +"]" + "[" + song.getArtist() +"]" + "[" + song.getAlbum() + "]" 
 					+ "[" + song.getOnsale() + "]");
 			n++;
 		}
@@ -76,9 +80,6 @@ public class ProcessHtml {
 		Song song = null;
 		String line = null;
 		try{
-			Pattern tabStartPatt = Pattern.compile("[\\s]*<tr data-needpay=\"\\d\" data-playstatus=\"\\d\"");
-			Pattern tabEndPatt = Pattern.compile("[\\s]*</table>");
-	
 			while ((line = reader.readLine()) != null) {
 				Matcher sMatcher = tabStartPatt.matcher(line);
 				Matcher eMatcher = tabEndPatt.matcher(line);
@@ -98,13 +99,14 @@ public class ProcessHtml {
 					if (line.trim().equals("<td class=\"song_name\">")) {
 						String titleStartStr = "title=\"";
 						String titleEndStr = "</a>";
-						String Title = tagAnalysis(reader, titleStartStr, titleEndStr, line);
-						song.setTitle(replaceKey(Title));
+						String TitleInfo[] = tagAnalysis(reader, titleStartStr, titleEndStr, line);
+						song.setDownsite(TitleInfo[0]); //设置歌曲虾米链接
+						song.setTitle(replaceKey(TitleInfo[1])); //设置歌曲名称
 					}
 					if (line.trim().startsWith("<a class=\"artist_name\"")) {
 						String Artist = line.substring(line.indexOf("\">") + 2, line.indexOf("</a>"));
 						//System.out.println("		artist_name:[" + replaceKey(Artist) + "]");
-						song.setArtist(replaceKey(Artist));
+						song.setArtist(replaceKey(Artist));	
 						songList.add(song);
 						//System.out.println(song.getTitle() + " " + song.getArtist() + " " +song.getIsdownload());
 						//跳过<tr></tr>内的余下行, 加快处理速度, 实际测试能增加处理速度15%
@@ -129,37 +131,69 @@ public class ProcessHtml {
 		}	
 	}
 	
-	/* 从当前传过来的line行开始, 查找制定标签的内容 */
-	private static String tagAnalysis(BufferedReader reader, String titleStartStr, String titleEndStr, String line) throws IOException{
-		String content = null;
+	/**
+	 * @description 从当前传过来的line行开始, 查找链接和标签内容
+	 * @parm 
+	 * @return String[2], 其中sting[0]=链接信息、string[1]=歌曲名称
+	 */
+	private static String[] tagAnalysis(BufferedReader reader, String startTag, String endTag, String line) throws IOException{
+		String content[] = new String[2];
 		
-		while (!line.contains(titleStartStr)) {
+		//提取歌曲链接信息
+		//默认，歌曲链接位于titleStartStr同一行：：<a title="いろは唄" href="http://www.xiami.com...
+		while (!line.contains(startTag)) {
 			line = reader.readLine();
 		}
-		int index = line.indexOf(titleStartStr) + titleStartStr.length();
-		line = line.substring(index);
-		index = 0;
-		for(char c:line.toCharArray()) {
-			if (c != '>') {
-				index ++;
-				continue;
-			} else {
-				index ++;
-				break;
-			}
-		}
-		int indexEnd = -1;
-		if ((indexEnd = line.indexOf(titleEndStr)) > 0) {
-			content = line.substring(index, indexEnd);
+		Matcher matcher = hrefPatt.matcher(line);
+		if (matcher.find()) {
+			String href = matcher.group(0);
+			href = href.substring(6, href.length() - 1);
+			content[0] = href;
 		} else {
-			content = line.substring(index);
+			System.out.println("没有匹配到href信息: " + line);
+		}
+		
+		//提取歌曲名，从<a>标签中提取
+		int index = line.indexOf(startTag) + startTag.length();
+		line = line.substring(index); //截断字符串，因为前面可能有'">'内容	
+		index = line.lastIndexOf("\">") + 2; //最后一处'">'视为<startTag ...>结束
+		
+		int indexEnd = -1;
+		if ((indexEnd = line.indexOf(endTag)) > 0) {
+			content[1] = line.substring(index, indexEnd);
+		} else {
+			//如果<a>的内容换行，则需要拼接内容
+			content[1] = line.substring(index);
 			line = reader.readLine();
-			while ((indexEnd = line.indexOf(titleEndStr)) < 0) {
-				content += line;	
+			while ((indexEnd = line.indexOf(endTag)) < 0) {
+				content[1] += line;	
 				line = reader.readLine();
 			}
-			content += line.substring(0, indexEnd);
+			content[1] += line.substring(0, indexEnd);
 		}
 		return content;
+	}
+	
+	/**
+	 * 根据音乐页面，提取专辑信息
+	 * @param htmlContent 音乐信息页面
+	 * @return String 专辑名称
+	 */
+	public static String findAlbumByHtmlStr (String htmlContent) {
+		BufferedReader reader = new BufferedReader(new StringReader(htmlContent));
+		String line = null;
+		String startTag = "<a href=";
+		String endTag = "</a>";
+		try {
+			while((line = reader.readLine()) == null || !line.contains("<table id=\"albums_info\"")) {}
+			String[] taginfo = tagAnalysis(reader, startTag, endTag, line);
+			if (taginfo != null && taginfo[1] != null) {
+				return taginfo[1];
+			}
+		} catch (Exception e) {
+			
+		}
+		
+		return null;
 	}
 }

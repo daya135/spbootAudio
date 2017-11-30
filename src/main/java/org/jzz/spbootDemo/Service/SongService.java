@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.jzz.spbootDemo.model.Song;
 import org.jzz.spbootDemo.model.SongRepository;
+import org.jzz.spbootDemo.utils.ProcessHtml;
 import org.jzz.spbootDemo.utils.XiamiCatch;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,13 +25,14 @@ public class SongService {
 	public void xiamiSynchronize() {
 
 		List<Song> songDBList = songRepository.findAll();
-		List<Song> songXiamiList = XiamiCatch.postForm();
+		List<Song> songXiamiList = XiamiCatch.CatchSongInfo();
+//		XiamiCatch.CatchSongAlbumInfo(songXiamiList);
 		
 		logger.info("虾米收藏数: " + songXiamiList.size() + "  数据库条目数: " + songDBList.size() + " 开始同步...");
 		int processFlag = 0;
 		for (int i = 0; i < songXiamiList.size(); i++) {
 			Song songXiami = songXiamiList.get(i);
-			logger.debug("处理第" + i + "首歌曲: "+ songXiami);
+			logger.info("处理第" + i + "首歌曲: "+ songXiami);
 			if (StringUtils.isEmpty(songXiami.getTitle()) || StringUtils.isEmpty(songXiami.getArtist())) {
 				logger.info("虾米抓取的音乐名或艺术家为空: " + songXiami);
 				continue;
@@ -52,10 +54,17 @@ public class SongService {
 				//本地不存在,入库
 				logger.info("插入新条目: " + songXiami);
 				songXiami.setIsdownload("0");
-				songXiami.setDownsite("xiami");
 				songRepository.save(songXiami);
 			}
 		}
+	}
+	
+	public void updateAlbumInfo() {
+		List<Song> songDBList = songRepository.findAll();
+		XiamiCatch.CatchSongAlbumInfo(songDBList);
+		ProcessHtml.printList(songDBList);
+		songRepository.save(songDBList);
+
 	}
 	
 	/* 比较虾米歌曲与数据库区别，并根据需求记录日志 */

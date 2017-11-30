@@ -48,6 +48,6 @@ public class ServiceTest {
 //		address.setAddress("事务测试地址");
 //		userService.regist(user, address);
 		
-		songService.xiamiSynchronize();
+		songService.updateAlbumInfo();
 	}
 }
