@@ -15,6 +15,8 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.FutureTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -105,8 +107,11 @@ public class XiamiCatch {
 	
 	/** 
 	 * @description 根据虾米收藏列表，抓取歌曲名称、艺术家、上架信息和歌曲虾米链接
+	 * @param pageNum:需要处理的收藏页数（从零开始）
 	 * */
-	public static List<Song> CatchSongInfo() {
+	public static List<Song> CatchSongInfo(int pageNum) {
+		if(pageNum < 1) 
+			return null;
 		
 		CloseableHttpClient httpClient = HttpClients.createDefault();
 		//此处不是登陆页面的地址, 而是表单提交的地址!
@@ -153,9 +158,8 @@ public class XiamiCatch {
 			Integer songNum = new Integer(songNumStr.substring(songNumStr.indexOf("共") + 1, songNumStr.indexOf("条")));
 			System.out.println(songNumStr + ":" +songNum );
 
-			int pageNum = songNum / numPerPage;
-			if (songNum % numPerPage != 0)
-				pageNum = pageNum +1;
+			int maxPages = songNum % numPerPage == 0 ? songNum / numPerPage : songNum / numPerPage + 1;
+			pageNum = pageNum < maxPages ? pageNum : maxPages; //确定实际要处理的页数
 			for (int i = 1; i <= pageNum; i++) {
 				String listUrl = "http://www.xiami.com/space/lib-song/u/" + uid + "/page/" + i;
 				httpPost = new HttpPost(listUrl);
@@ -189,45 +193,94 @@ public class XiamiCatch {
 	}
 	
 	/**
-	 *  根据虾米链接，抓取song的专辑信息。
-	 *  未完成，执行一段时间后会因为不知名原因卡住。。
+	 *  根据虾米链接，抓取song的专辑信息。默认每个线程处理50首歌
 	 */
 	public static void CatchSongAlbumInfo(List<Song> songs) {
-		CloseableHttpClient httpClient = HttpClients.createDefault();
-		HttpGet httpGet;
-		for (int i = 0; i < songs.size();  i ++) {
-			Song song = songs.get(i);
-			if (song.getDownsite() != null && song.getDownsite().length() > 0) {
-				if (!song.getDownsite().contains("http://www.xiami.com/")) {
-					logger.info(String.format("歌曲地址不正确！：title=[%s],artist=[%s],sit=[%s]", 
-							song.getTitle(), song.getArtist(), song.getDownsite()));
-					continue;
-				}
-				httpGet = new HttpGet(song.getDownsite());
-				httpGet.setConfig(RequestConfig.custom().setRedirectsEnabled(false).build()); //禁止自动重定向，虾米的某些歌曲页面会重定向，比如http://www.xiami.com/song/xLB4rda4246
-				try {
-					HttpResponse response = httpClient.execute(httpGet);
-					if (response.getStatusLine().toString().equals("HTTP/1.1 200 OK")) {
-						String htmlContent = EntityUtils.toString(response.getEntity());
-						String album = ProcessHtml.findAlbumByHtmlStr(htmlContent);
-						logger.info(String.format("提取歌曲专辑信息：[%d][%s][%s][%s][%s]", 
-								i, song.getTitle(), song.getArtist(),album, song.getDownsite()));
-						song.setAlbum(album);
-						Thread.sleep(100);
-					} else {
-						logger.info("获取歌曲详细信息页面出错!歌曲信息：[%d][%s][%s][%s]", i, song.getTitle(), song.getArtist(), song.getDownsite());
-					}
-//					Thread.sleep(50);
-				} catch (Exception e) {
-					logger.debug(e.getMessage());
-				} 
+		int threadNum = songs.size() % 50 > 0 ? (songs.size() / 50 + 1) : songs.size() / 50;
+
+		List<FutureTask<Integer>> futureTasks = new ArrayList<FutureTask<Integer>>();
+		for (int i = 0; i < threadNum; i ++) {
+			futureTasks.add(new FutureTask<Integer>(new CatchAlbumThread(songs, i * 50 , 50)));
+		}
+		for (FutureTask<Integer> task :futureTasks ) {
+			Thread thread = new Thread(task);
+			thread.start();
+		}
+		
+		//获取线程返回值，此处是为了使用阻塞功能。保证所有线程处理完成。
+		for (int i = 0; i < futureTasks.size(); i++) {
+			FutureTask<Integer> task = futureTasks.get(i);
+			try{
+				logger.info(String.format("获得线程[%d]返回值:[%d]", i, task.get()));
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
 		}
-        try {  
-            httpClient.close();
-        } catch (IOException e) {  
-            e.printStackTrace();  
-        }  
+	}
+	
+	/**
+	 * @author Merin
+	 * 提取歌曲专辑信息线程，每个线程处理一部分list。
+	 * 初始参数：歌曲list，开始index，处理条数procNum
+	 * 返回值，成功找到专辑的数量
+	 */
+	static class CatchAlbumThread implements Callable<Integer> {
+		private List<Song> songs;
+		private int beginIndex;
+		private int procNum;
+		
+		public CatchAlbumThread(List<Song> songs, int beginIndex, int procNum) {
+			this.songs = songs;
+			this.beginIndex = beginIndex;
+			this.procNum = procNum;
+		}
+
+		@Override
+		public Integer call() {
+			logger.info(String.format("Thread[%d] start...", beginIndex/procNum));
+			CloseableHttpClient httpClient = HttpClients.createDefault();
+			HttpGet httpGet;
+			HttpResponse response;
+			int finshNum = 0; //记录找到专辑的歌曲数
+			for (int i = 0; i < procNum;  i ++) {
+				int procIndex = i + beginIndex;
+				if(procIndex >= songs.size()) 
+					break;
+				
+				Song song = songs.get(procIndex);
+				if (song !=null && song.getDownsite() != null && song.getDownsite().length() > 0) {
+					if (!song.getDownsite().contains("http://www.xiami.com/")) {
+						logger.info(String.format("歌曲地址不正确：[%d][%s][%s][%s]", 
+								procIndex, song.getTitle(), song.getArtist(), song.getDownsite()));
+						continue;
+					}
+					httpGet = new HttpGet(song.getDownsite());
+					httpGet.setConfig(RequestConfig.custom().setSocketTimeout(10000).setConnectTimeout(10000).setRedirectsEnabled(false).build()); //禁止自动重定向，虾米的某些歌曲页面会重定向，比如http://www.xiami.com/song/xLB4rda4246	
+					try {
+						response = httpClient.execute(httpGet);
+						if (response.getStatusLine().toString().equals("HTTP/1.1 200 OK")) {
+							String htmlContent = EntityUtils.toString(response.getEntity());
+							String album = ProcessHtml.findAlbumByHtmlStr(htmlContent);
+							logger.info(String.format("找到歌曲专辑信息：[%d][%s][%s][%s][%s]", 
+									procIndex, song.getTitle(), song.getArtist(),album, song.getDownsite()));
+							song.setAlbum(album);
+							finshNum ++;
+							Thread.sleep(500);
+						} else {
+							logger.info(String.format("获取歌曲专辑页面出错：[%d][%s][%s][%s]",
+									procIndex, song.getTitle(), song.getArtist(), song.getDownsite()));
+						}
+//						Thread.sleep(50);
+					} catch (Exception e) {
+						logger.debug(e.getMessage());
+					} finally {
+						httpGet.releaseConnection();
+					}
+				}
+			}
+			logger.info(String.format("Thread[%d] end...", beginIndex/procNum));
+			return finshNum;
+		}
 	}
 
 }

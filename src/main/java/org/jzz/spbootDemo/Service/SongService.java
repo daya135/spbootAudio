@@ -1,8 +1,12 @@
 package org.jzz.spbootDemo.Service;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
+import org.assertj.core.internal.cglib.core.CollectionUtils;
 import org.jzz.spbootDemo.model.Song;
 import org.jzz.spbootDemo.model.SongRepository;
 import org.jzz.spbootDemo.utils.ProcessHtml;
@@ -18,17 +22,22 @@ import org.springframework.util.StringUtils;
 public class SongService {
 	
 	private org.slf4j.Logger logger = LoggerFactory.getLogger(SongService.class);
+	private static final int MaxPage = 9999;
 	
 	@Autowired 
 	SongRepository songRepository;
 	
 	public void xiamiSynchronize() {
 
+		List<Song> insertSongList = new ArrayList<>();
+		List<Song> updateSongList = new ArrayList<>();
 		List<Song> songDBList = songRepository.findAll();
-		List<Song> songXiamiList = XiamiCatch.CatchSongInfo();
-//		XiamiCatch.CatchSongAlbumInfo(songXiamiList);
+		List<Song> songXiamiList = XiamiCatch.CatchSongInfo(MaxPage);
 		
-		logger.info("虾米收藏数: " + songXiamiList.size() + "  数据库条目数: " + songDBList.size() + " 开始同步...");
+		Collections.reverse(songXiamiList); //反转顺序，保证越新的歌曲id越大
+		//XiamiCatch.CatchSongAlbumInfo(songXiamiList);
+		
+		logger.info(String.format("新处理虾米收藏数:[%d],数据库条目数:[%d],开始同步到数据库...", songXiamiList.size(), songDBList.size()));
 		int processFlag = 0;
 		for (int i = 0; i < songXiamiList.size(); i++) {
 			Song songXiami = songXiamiList.get(i);
@@ -41,20 +50,20 @@ public class SongService {
 			processFlag = 0;
 			for (Song songDB : songDBList) {
 				if (compareSongXiami(songXiami, songDB)) {
-					//本地存在, 更新下架信息
+					//数据库存在, 更新下架信息
 					logger.debug("更新下架信息: " + songXiami);
 					songDB.setOnsale(songXiami.getOnsale());
 					songDB.setUpdatetime(new Date());
-					songRepository.save(songDB);
+					updateSongList.add(songDB);
 					processFlag = 1;
 					continue;
 				}
 			}
 			if (processFlag == 0) {
-				//本地不存在,入库
+				//数据库不存在,入库
 				logger.info("插入新条目: " + songXiami);
 				songXiami.setIsdownload("0");
-				songRepository.save(songXiami);
+				insertSongList.add(songXiami);
 			}
 		}
 	}
