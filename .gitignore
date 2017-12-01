@@ -1,2 +1,3 @@
 target/
-./src/main/resources/web.properties
+
+src/main/resources/web.properties
