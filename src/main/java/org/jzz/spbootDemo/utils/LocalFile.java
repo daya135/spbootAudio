@@ -51,7 +51,7 @@ public class LocalFile {
 				} else if(file.getName().trim().endsWith(FILETYPE)) {	
 					try {
 						logger.info(String.format("开始解析mp3文件：[%s]" , file.getName().trim()));
-						Song song = MP3Analysis.mp3Info(dirName + "/" + file.getName().trim());
+						Song song = MP3Analysis2.mp3Info(dirName + "/" + file.getName().trim());
 						if (song.getTitle() == null || song.getTitle().trim().length() == 0) {
 							logger.info(String.format("文件[%s]歌曲名为空，跳过", file.getName()));
 						} else {
@@ -71,25 +71,6 @@ public class LocalFile {
 		return;
 	}
 	
-	/* 
-	 * 确定两个mp3是否是同一首歌
-	 * 建议增加mp3文件内部解析, 比较MP3长度, 码率, hash值等信息是否一致
-	 */
-	public boolean compareStr(String str1, String str2) {
-		if (str1.equals(str2)) {
-			return true;
-		} 
-		int maxLength = str1.length() > str2.length() ? str1.length() : str2.length();
-		int minLength = str1.length() < str2.length() ? str2.length() : str1.length();
-		if (str1.contains(str2) || str2.contains(str1)) {
-			// 相似度校验
-			if (minLength / maxLength > 0.75) {
-				return true;
-			}
-		}
-		return false;
-	}
-	
 	public void writeList(List<Song> list) {
 		String fileNameStr = "localList.txt";
 		try {
@@ -104,21 +85,6 @@ public class LocalFile {
 			e.printStackTrace();
 		}
 	}
-	
-	public List<Song> compareList(List<Song> webList, List<Song> localList) {
-		List<Song> list = new ArrayList<Song>();
-		for (Song webSong : webList) {
-			for (Song localSong : localList) {
-				if (compareStr(webSong.getArtist(), localSong.getArtist()))
-					if (compareStr(webSong.getTitle(), localSong.getTitle()))	{
-						list.add(webSong);
-						System.out.println(webSong.getTitle() + "\t" + webSong.getArtist());
-						continue;
-					}
-				
-			}
-		}
-		return list;
-	}
+
 	
 }

@@ -16,13 +16,15 @@ import org.junit.runner.RunWith;
 import org.jzz.spbootDemo.model.Song;
 import org.jzz.spbootDemo.utils.LocalFile;
 import org.jzz.spbootDemo.utils.MP3Analysis;
+import org.jzz.spbootDemo.utils.MP3Analysis2;
 import org.jzz.spbootDemo.utils.ProcessHtml;
 import org.jzz.spbootDemo.utils.XiamiCatch;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
 
-
+@RunWith(SpringRunner.class)
+@SpringBootTest
 public class TestUtils {
 	
 	public static void printList(List<Song> songList) {
@@ -41,23 +43,26 @@ public class TestUtils {
 	}
 
 
-	public static void main(String[] args) throws Exception{
+	@org.junit.Test
+	public static void Test() throws Exception {
 		
 		
 //		List<Song> list = XiamiCatch.postForm();
 //		printList(list);
 		
-//		MP3Analysis analysis = new MP3Analysis();
-//		Song song = analysis.mp3Info("D:/Audio/虾米音乐/Baad-君が好きだと叫びたい.mp3");
+//		Song song = MP3Analysis2.mp3Info("D:/Audio/虾米音乐/Baad-君が好きだと叫びたい.mp3");//ID3V2.3、ID3V1
+////		Song song = MP3Analysis2.mp3Info("D:/Audio/めらみぽっぷ - 竹ノ花 - 译名竹之花.mp3");//ID3V2.2
 //		System.out.println(song);
 		
+		long time = System.currentTimeMillis();
 		List<Song> list = LocalFile.getLocalSongList("D:/Audio");
 		printList(list);
+		System.out.println(System.currentTimeMillis() - time);
 		
 //		String href = "href=\"http://www.xiami.com/song/m\"";
 //		System.out.println(href.substring(6, href.length() - 1));
 		
-		List<Song>  songs = new ArrayList<>();		
+//		List<Song>  songs = new ArrayList<>();		
 //		Song song = new Song();
 //		song.setDownsite("http://www.xiami.com/song/xL0BmDc0d58");
 //		song.setTitle("＜正調＞佐渡の二ッ岩");
@@ -75,8 +80,11 @@ public class TestUtils {
 //		HttpResponse response = httpClients.execute(httpGet);
 //		System.out.println(response.getStatusLine());
 //		System.out.println(EntityUtils.toString(response.getEntity()));
-		
    
+	}
+	
+	public static void main(String[] args) throws Exception {
+		Test();
 	}
 	
 }
