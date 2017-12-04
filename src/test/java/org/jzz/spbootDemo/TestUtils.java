@@ -34,8 +34,7 @@ public class TestUtils {
 				pageCount ++;
 				n = 0;
 			}
-			System.out.println("[" + song.getTitle() +"]" + "[" + song.getArtist() +"]" 
-					+ "[" + song.getOnsale() + "]");
+			System.out.println(song);
 			n++;
 		}
 		System.out.println("-------" + songList.size() + "-------");
@@ -49,10 +48,11 @@ public class TestUtils {
 //		printList(list);
 		
 //		MP3Analysis analysis = new MP3Analysis();
-//		analysis.mp3Info("D:/Audio/虾米音乐/Baad-君が好きだと叫びたい.mp3");
+//		Song song = analysis.mp3Info("D:/Audio/虾米音乐/Baad-君が好きだと叫びたい.mp3");
+//		System.out.println(song);
 		
-//		List<Song> list = LocalFile.getLocalSongList("D:/Audio/虾米音乐");
-//		printList(list);
+		List<Song> list = LocalFile.getLocalSongList("D:/Audio");
+		printList(list);
 		
 //		String href = "href=\"http://www.xiami.com/song/m\"";
 //		System.out.println(href.substring(6, href.length() - 1));
@@ -75,7 +75,6 @@ public class TestUtils {
 //		HttpResponse response = httpClients.execute(httpGet);
 //		System.out.println(response.getStatusLine());
 //		System.out.println(EntityUtils.toString(response.getEntity()));
-		
 		
    
 	}

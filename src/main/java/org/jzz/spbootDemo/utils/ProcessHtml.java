@@ -3,18 +3,14 @@ package org.jzz.spbootDemo.utils;
 import java.util.List;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.io.StringReader;
-import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.http.util.EntityUtils;
 import org.jzz.spbootDemo.model.Song;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * 解析html, 查找歌名和歌手信息
@@ -22,8 +18,7 @@ import org.jzz.spbootDemo.model.Song;
  */
 public class ProcessHtml {
 	
-	private List<Song> songList = new ArrayList<Song>();
-	
+	private static Logger logger = LoggerFactory.getLogger(ProcessHtml.class);
 	private static Pattern tabStartPatt = Pattern.compile("[\\s]*<tr data-needpay=\"\\d\" data-playstatus=\"\\d\"");
 	private static Pattern tabEndPatt = Pattern.compile("[\\s]*</table>");
 	private static Pattern hrefPatt = Pattern.compile("(href=\")\\S*\"");
@@ -42,13 +37,12 @@ public class ProcessHtml {
 		int n = 0;
 		int pageCount = 1;
 		for (Song song : songList) {
-			if (n % 25 == 0) {
+			if (n%25 == 0) {
 				System.out.println("-------" + pageCount + "-------");
 				pageCount ++;
 				n = 0;
 			}
-			System.out.println("[" + song.getTitle() +"]" + "[" + song.getArtist() +"]" + "[" + song.getAlbum() + "]" 
-					+ "[" + song.getOnsale() + "]");
+			System.out.println(song);
 			n++;
 		}
 		System.out.println("-------" + songList.size() + "-------");
@@ -150,7 +144,7 @@ public class ProcessHtml {
 			href = href.substring(6, href.length() - 1);
 			content[0] = href;
 		} else {
-			System.out.println("没有匹配到href信息: " + line);
+			logger.debug("没有匹配到href信息: " + line);
 		}
 		
 		//提取歌曲名，从<a>标签中提取

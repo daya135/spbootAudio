@@ -186,6 +186,6 @@ public class Song {
     
     @Override
     public String toString() {
-        return String.format("[title=%s], [artist=%s]", title, artist);
+        return String.format("title=[%s],artist=[%s],album=[%s],band=[%s],locakpath=[%s]", title, artist, album, band, localpath);
     }
 }

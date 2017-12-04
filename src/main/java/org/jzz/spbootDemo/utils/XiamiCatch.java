@@ -85,17 +85,6 @@ public class XiamiCatch {
 		
 	}
 	
-//	public XiamiCatch() throws IOException {
-//		/* 初始化抓取虾米网站所用的参数, 从classPath读取配置文件 */
-//		InputStream inputStream = XiamiCatch.class.getClassLoader().getResourceAsStream("web.properties");
-//		Properties prop = new Properties();
-//		prop.load(inputStream);
-//		this.userName = prop.getProperty("xiami_user");
-//		this.passWord = prop.getProperty("xiami_password");
-//		this.uid = prop.getProperty("xiami_uid");
-//		this.numPerPage = Integer.parseInt(prop.getProperty("numPerPage"));
-//	}
-	
 	public void saveFile(String str) {
 		try {
 			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(new File(fileName), false), "utf-8"));
