@@ -23,6 +23,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.nio.*;
+import java.nio.charset.Charset;
+
 @RunWith(SpringRunner.class)
 @SpringBootTest
 public class TestUtils {
@@ -41,23 +44,32 @@ public class TestUtils {
 		}
 		System.out.println("-------" + songList.size() + "-------");
 	}
+	
+	public static String ByteToString(byte[] bytes) {
+		StringBuffer strBuffer = new StringBuffer();
+		for (byte b : bytes) {
+			String bString = Integer.toHexString(0xff & b);
+			strBuffer.append(bString);
+		}
+		return strBuffer.toString();		
+	}
 
 
 	@org.junit.Test
-	public static void Test() throws Exception {
+	public  void test() throws Exception {
 		
 		
 //		List<Song> list = XiamiCatch.postForm();
 //		printList(list);
 		
-//		Song song = MP3Analysis2.mp3Info("D:/Audio/虾米音乐/Baad-君が好きだと叫びたい.mp3");//ID3V2.3、ID3V1
+		Song song = MP3Analysis2.mp3Info("D:/Audio/虾米音乐/Baad-君が好きだと叫びたい.mp3");//ID3V2.3、ID3V1
 ////		Song song = MP3Analysis2.mp3Info("D:/Audio/めらみぽっぷ - 竹ノ花 - 译名竹之花.mp3");//ID3V2.2
-//		System.out.println(song);
+		System.out.println(song);
 		
-		long time = System.currentTimeMillis();
-		List<Song> list = LocalFile.getLocalSongList("D:/Audio");
-		printList(list);
-		System.out.println(System.currentTimeMillis() - time);
+//		long time = System.currentTimeMillis();
+//		List<Song> list = LocalFile.getLocalSongList("D:/Audio");
+//		printList(list);
+//		System.out.println(System.currentTimeMillis() - time);
 		
 //		String href = "href=\"http://www.xiami.com/song/m\"";
 //		System.out.println(href.substring(6, href.length() - 1));
@@ -84,7 +96,8 @@ public class TestUtils {
 	}
 	
 	public static void main(String[] args) throws Exception {
-		Test();
+		new TestUtils().test();
+
 	}
 	
 }

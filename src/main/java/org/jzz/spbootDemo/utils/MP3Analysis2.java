@@ -27,9 +27,8 @@ public class MP3Analysis2 {
 	public static Song mp3Info (String fileName) throws Exception {
 		Song song = new Song(); //值为null的指针调用任何方法, 报NullPointerException!!!!
 		FileChannel fileChannel = new FileInputStream(fileName).getChannel();
-		MappedByteBuffer mapBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, (int)fileChannel.size());
-		
-		logger.debug(String.format("开始解析mp3文件[%s]" , fileName));	
+		MappedByteBuffer mapBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, (int)fileChannel.size());	
+		logger.debug(String.format("开始解析mp3文件[%s],存储方式[%s]" , fileName, mapBuffer.order()));	
 		try {
 			String fileHead = fileType(mapBuffer);
 			logger.debug(String.format("文件头[%s]" , fileHead));
@@ -267,6 +266,7 @@ public class MP3Analysis2 {
 	 */
 	private static String fileType(MappedByteBuffer mapBuffer) throws Exception{
 		byte[] buf = new byte[128];
+		mapBuffer.position(0);
 		mapBuffer.get(buf, 0, 4);
 		if ("ID3".equals(new String(buf, 0, 3, "ASCII")) ) {
 			if (buf[3] == (byte)0x03)
